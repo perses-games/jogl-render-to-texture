@@ -41,7 +41,12 @@ public class Renderer implements GLEventListener  {
     };
 
     private FloatBuffer             fbTxtVertices       = Buffers.newDirectFloatBuffer(txtVerts);
-    private FloatBuffer             fbFullVertices      = Buffers.newDirectFloatBuffer( new float [] { -1f, -1f, 1f, -1f, 1f, 1f, -1f, 1f } );
+    private FloatBuffer             fbFullVertices      = Buffers.newDirectFloatBuffer( new float [] {
+            -1f, -1f, -0.1f,
+             1f, -1f, -0.1f,
+             1f,  1f, -0.1f,
+            -1f,  1f, -0.1f,
+    } );
 
     private int                     width = 100, height = 100;
 
@@ -54,6 +59,10 @@ public class Renderer implements GLEventListener  {
     private int                     textureUniformLocation;
 
     private Keyboard                keyboard;
+
+    private int                     frameCount;
+    private long                    frameTime;
+    private long                    lastTiming;
 
     private long                    start = System.currentTimeMillis();
     public Renderer(GLWindow glWindow, Keyboard keyboard) {
@@ -76,7 +85,7 @@ public class Renderer implements GLEventListener  {
             if (dirty) {
                 //logger.info("rendering+" + System.currentTimeMillis());
                 Renderer.this.glWindow.display();
-                Renderer.this.glWindow.swapBuffers();
+                //Renderer.this.glWindow.swapBuffers();
                 dirty = true;
             } else {
                 try {
@@ -105,6 +114,8 @@ public class Renderer implements GLEventListener  {
         int [] result = new int[1];
         gl.glGetIntegerv(GL2.GL_MAX_VERTEX_ATTRIBS, result, 0);
         logger.info("GL_MAX_VERTEX_ATTRIBS=" + result[0]);
+
+        gl.setSwapInterval(1);
 
         shaderProgram = new ShaderProgram(gl, Util.loadAsText(getClass(), "simpleShader.vert"), Util.loadAsText(getClass(), "simpleShader.frag"));
         blendProgram = new ShaderProgram(gl, Util.loadAsText(getClass(), "blendShader.vert"), Util.loadAsText(getClass(), "blendShader.frag"));
@@ -135,7 +146,7 @@ public class Renderer implements GLEventListener  {
         gl.glBindBuffer(GL2ES2.GL_ARRAY_BUFFER, fullVertices);
 
         // transfer data to VBO, this perform the copy of data from CPU -> GPU memory
-        gl.glBufferData(GL.GL_ARRAY_BUFFER, 32, fbFullVertices, GL.GL_STATIC_DRAW);
+        gl.glBufferData(GL.GL_ARRAY_BUFFER, 48, fbFullVertices, GL.GL_STATIC_DRAW);
 
         gl.glGenFramebuffers(1, tmpHandle, 0);
 
@@ -152,8 +163,8 @@ public class Renderer implements GLEventListener  {
         gl.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGB, 512, 512, 0, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, null);
 
         // Poor filtering. Needed !
-        gl.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST);
-        gl.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST);
+        gl.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR);
+        gl.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR);
     }
 
     @Override
@@ -163,6 +174,7 @@ public class Renderer implements GLEventListener  {
 
     @Override
     public void display(GLAutoDrawable drawable) {
+        long frameStart = System.nanoTime();
         //logger.info("display+" + System.currentTimeMillis());
 
         GL2ES2 gl = drawable.getGL().getGL2ES2();
@@ -173,7 +185,9 @@ public class Renderer implements GLEventListener  {
         gl.glViewport(0, 0, 512, 512);
 
         gl.glEnable(GL.GL_BLEND);
-        gl.glBlendEquation(GL.GL_FUNC_SUBTRACT);
+        gl.glDisable(GL.GL_DEPTH_TEST);
+        //gl.glBlendEquation(GL.GL_FUNC_SUBTRACT);
+        gl.glBlendFunc(GL.GL_DST_COLOR, GL.GL_ONE_MINUS_SRC_ALPHA);
         //gl.glBlendEquationSeparate(GL.GL_SRC_ALPHA, GL.GL_DST_ALPHA);
 
         // Clear screen
@@ -187,7 +201,7 @@ public class Renderer implements GLEventListener  {
         gl.glBindBuffer(GL2ES2.GL_ARRAY_BUFFER, fullVertices);
 
         // Associate Vertex attribute 0 with the last bound VBO
-        gl.glVertexAttribPointer(0 /* the vertex attribute */, 2,
+        gl.glVertexAttribPointer(0 /* the vertex attribute */, 3,
                 GL2ES2.GL_FLOAT, false /* normalized? */, 0 /* stride */,
                 0 /* The bound VBO data offset */);
 
@@ -241,7 +255,7 @@ public class Renderer implements GLEventListener  {
         gl.glViewport(0, 0, width, height);
 
         // Clear screen
-        gl.glClearColor(0.1f, 0.0f, 0.1f, 1f);
+        gl.glClearColor(0.0f, 0.0f, 0.0f, 1f);
         gl.glClear(GL2ES2.GL_COLOR_BUFFER_BIT);
 
         shaderProgram.begin();
@@ -280,6 +294,17 @@ public class Renderer implements GLEventListener  {
         gl.glDisableVertexAttribArray(0); // Allow release of vertex position memory
 
         textureProgram.end();
+
+        frameTime += (System.nanoTime() - frameStart);
+        frameCount++;
+
+        if (lastTiming < (System.currentTimeMillis() - 1000)) {
+            logger.info("FPS: {}, drawing time/s: {}ns, per frame: {}", frameCount, frameTime, frameCount > 0 ? (frameTime/frameCount) : 0);
+
+            frameTime  = 0L;
+            frameCount = 0;
+            lastTiming = System.currentTimeMillis();
+        }
     }
 
     @Override
