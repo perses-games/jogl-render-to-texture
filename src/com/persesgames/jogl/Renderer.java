@@ -215,6 +215,7 @@ public class Renderer implements GLEventListener  {
         gl.glDisableVertexAttribArray(0); // Allow release of vertex position memory
 
         blendProgram.end();
+
         gl.glDisable(GL.GL_BLEND);
 
         // Select the VBO, GPU memory data, to use for vertices

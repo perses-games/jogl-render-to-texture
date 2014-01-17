@@ -26,9 +26,9 @@ public class TestJogl {
 
         GLWindow glWindow = GLWindow.create(caps);
 
-        glWindow.setTitle("jogl-triangle");
+        glWindow.setTitle("jogl-render-to-texture");
 
-        glWindow.setSize(800, 600);
+        glWindow.setSize(800, 800);
 
         glWindow.setFullscreen(false);
         glWindow.setUndecorated(false);
